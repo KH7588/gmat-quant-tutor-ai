@@ -1,0 +1,33 @@
+export enum AppView {
+  LOGIN = 'LOGIN',
+  DASHBOARD = 'DASHBOARD',
+  PRACTICE = 'PRACTICE',
+}
+
+export enum TopicId {
+  WORK_RATE = 'WORK_RATE',
+  VENN_DIAGRAM = 'VENN_DIAGRAM',
+  PERCENTAGES = 'PERCENTAGES',
+  NUMBER_PROPERTIES = 'NUMBER_PROPERTIES',
+  CRITICAL_REASONING = 'CRITICAL_REASONING',
+}
+
+export interface Topic {
+  id: TopicId;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  role: 'user' | 'model';
+  text: string;
+  isThinking?: boolean;
+  actions?: string[]; // 新增：支援互動按鈕
+}
+
+export interface User {
+  username: string;
+  isAuthenticated: boolean;
+}

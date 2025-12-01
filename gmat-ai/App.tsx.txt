@@ -1,0 +1,74 @@
+import React, { useState } from 'react';
+import { User, Topic, AppView } from './types';
+import { TOPICS } from './constants';
+import { Login } from './components/Login';
+import { TopicCard } from './components/TopicCard';
+import { PracticeSession } from './components/PracticeSession';
+
+const App: React.FC = () => {
+  const [view, setView] = useState<AppView>(AppView.LOGIN);
+  const [user, setUser] = useState<User | null>(null);
+  const [selectedTopic, setSelectedTopic] = useState<Topic | null>(null);
+
+  const handleLogin = (username: string) => {
+    setUser({ username, isAuthenticated: true });
+    setView(AppView.DASHBOARD);
+  };
+
+  const handleTopicSelect = (topic: Topic) => {
+    setSelectedTopic(topic);
+    setView(AppView.PRACTICE);
+  };
+
+  const handleExitPractice = () => {
+    setSelectedTopic(null);
+    setView(AppView.DASHBOARD);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setView(AppView.LOGIN);
+  };
+
+  if (view === AppView.LOGIN) return <Login onLogin={handleLogin} />;
+  if (view === AppView.PRACTICE && selectedTopic) return <PracticeSession topic={selectedTopic} onExit={handleExitPractice} />;
+
+  return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <nav className="bg-white shadow px-6 py-4 sticky top-0 z-20">
+        <div className="max-w-7xl mx-auto flex justify-between items-center">
+          <div className="flex items-center gap-2">
+            <span className="text-2xl">🎓</span>
+            <h1 className="text-xl font-bold text-primary tracking-tight">GMAT 家教 AI</h1>
+          </div>
+          <div className="flex items-center gap-4">
+            <span className="text-gray-600 hidden sm:block text-sm">你好, <span className="font-semibold text-gray-800">{user?.username}</span></span>
+            <button onClick={handleLogout} className="text-sm text-gray-500 hover:text-red-600 font-medium transition-colors">登出</button>
+          </div>
+        </div>
+      </nav>
+
+      <main className="flex-1 max-w-7xl mx-auto w-full px-6 py-10">
+        <div className="mb-12 text-center">
+          <h2 className="text-3xl font-bold text-gray-900 mb-4">選擇今日練習主題</h2>
+          <p className="text-gray-600 max-w-2xl mx-auto leading-relaxed">
+            選擇一個 GMAT Quant 或是 Verbal 主題開始一對一的互動式練習。
+            系統將會根據你的回答進行<span className="font-bold text-primary">步驟拆解</span>與<span className="font-bold text-primary">觀念檢測</span>。
+          </p>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {TOPICS.map((topic) => (
+            <TopicCard key={topic.id} topic={topic} onClick={handleTopicSelect} />
+          ))}
+        </div>
+      </main>
+
+      <footer className="bg-white border-t py-6 text-center text-gray-500 text-sm">
+        &copy; {new Date().getFullYear()} GMAT Tutor AI. Powered by Google Gemini.
+      </footer>
+    </div>
+  );
+};
+
+export default App;

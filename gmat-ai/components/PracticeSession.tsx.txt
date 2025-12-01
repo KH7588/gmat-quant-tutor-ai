@@ -1,0 +1,107 @@
+import React, { useState, useEffect, useRef } from 'react';
+import { Topic, ChatMessage } from '../types';
+import { initializeChat, sendMessageToGemini } from '../services/geminiService';
+import { INITIAL_PROMPT_MSG } from '../constants';
+import { Button } from './Button';
+
+interface PracticeSessionProps { topic: Topic; onExit: () => void; }
+
+export const PracticeSession: React.FC<PracticeSessionProps> = ({ topic, onExit }) => {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [inputValue, setInputValue] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [hasStarted, setHasStarted] = useState(false);
+
+  const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  useEffect(() => { scrollToBottom(); }, [messages]);
+
+  useEffect(() => {
+    const startSession = async () => {
+      setIsLoading(true);
+      try {
+        await initializeChat(topic);
+        const response = await sendMessageToGemini(INITIAL_PROMPT_MSG);
+        setMessages([{ id: 'system-welcome', role: 'model', text: `歡迎來到 ${topic.title} 練習單元。\n這是為你準備的題目：\n\n${response}` }]);
+        setHasStarted(true);
+      } catch (error) {
+        setMessages([{ id: 'error', role: 'model', text: "系統初始化失敗，請檢查 API Key 或網路連線。" }]);
+      } finally { setIsLoading(false); }
+    };
+    if (!hasStarted) startSession();
+  }, [topic]);
+
+  const processResponse = (text: string): { cleanText: string, actions?: string[] } => {
+    const choicesMatch = text.match(/<<<Choices:\s*(.+?)>>>/);
+    if (choicesMatch) {
+      const actions = choicesMatch[1].split(',').map(s => s.trim());
+      const cleanText = text.replace(choicesMatch[0], '').trim();
+      return { cleanText, actions };
+    }
+    return { cleanText: text };
+  };
+
+  const handleSend = async (text: string) => {
+    if (!text.trim() || isLoading) return;
+    const userMsg: ChatMessage = { id: Date.now().toString(), role: 'user', text };
+    setMessages(prev => [...prev, userMsg]);
+    setInputValue('');
+    setIsLoading(true);
+
+    try {
+      const rawResponse = await sendMessageToGemini(userMsg.text);
+      const { cleanText, actions } = processResponse(rawResponse);
+      const botMsg: ChatMessage = { id: (Date.now() + 1).toString(), role: 'model', text: cleanText, actions };
+      setMessages(prev => [...prev, botMsg]);
+    } catch (error) { console.error(error); } finally { setIsLoading(false); }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSend(inputValue); }
+  };
+
+  return (
+    <div className="flex flex-col h-screen bg-gray-50">
+      <header className="bg-white shadow-sm px-6 py-4 flex items-center justify-between border-b border-gray-200">
+        <div className="flex items-center space-x-4">
+          <div className="bg-blue-100 p-2 rounded-lg text-2xl">{topic.icon}</div>
+          <div>
+            <h2 className="text-xl font-bold text-gray-800">{topic.title}</h2>
+            <p className="text-sm text-green-600 font-medium flex items-center">
+              <span className="w-2 h-2 bg-green-500 rounded-full mr-2 animate-pulse"></span>家教連線中
+            </p>
+          </div>
+        </div>
+        <Button variant="outline" onClick={onExit} className="text-sm">結束練習</Button>
+      </header>
+
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        {messages.map((msg) => (
+          <div key={msg.id} className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+            <div className={`max-w-[90%] sm:max-w-[75%] rounded-2xl px-5 py-4 shadow-sm text-base leading-relaxed whitespace-pre-wrap ${msg.role === 'user' ? 'bg-primary text-white rounded-br-none' : 'bg-white text-gray-800 border border-gray-100 rounded-bl-none'}`}>
+              {msg.text}
+            </div>
+            {msg.actions && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {msg.actions.map(action => (
+                  <button key={action} onClick={() => handleSend(action)} className="px-4 py-2 bg-blue-50 text-blue-600 rounded-full text-sm font-medium hover:bg-blue-100 border border-blue-200 transition-colors">
+                    {action}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+        {isLoading && <div className="text-gray-400 text-sm ml-4">正在分析您的回答...</div>}
+        <div ref={messagesEndRef} />
+      </div>
+
+      <div className="bg-white border-t border-gray-200 p-4 sm:p-6">
+        <div className="max-w-4xl mx-auto relative flex items-end gap-3">
+          <textarea value={inputValue} onChange={(e) => setInputValue(e.target.value)} onKeyDown={handleKeyDown} placeholder="輸入您的答案..." disabled={isLoading} className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-3 outline-none focus:ring-2 focus:ring-primary min-h-[60px] max-h-[150px]" rows={2} />
+          <Button onClick={() => handleSend(inputValue)} disabled={!inputValue.trim() || isLoading} className="h-[50px] w-[100px] mb-[2px]">送出</Button>
+        </div>
+      </div>
+    </div>
+  );
+};

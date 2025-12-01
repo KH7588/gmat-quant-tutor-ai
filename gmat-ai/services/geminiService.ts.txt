@@ -1,0 +1,25 @@
+import { GoogleGenAI, Chat } from "@google/genai";
+import { getSystemInstruction } from "../constants";
+import { Topic } from "../types";
+
+let chatSession: Chat | null = null;
+
+export const initializeChat = async (topic: Topic): Promise<Chat> => {
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  chatSession = ai.chats.create({
+    model: 'gemini-2.5-flash',
+    config: { systemInstruction: getSystemInstruction(topic), temperature: 0.7 },
+  });
+  return chatSession;
+};
+
+export const sendMessageToGemini = async (message: string): Promise<string> => {
+  if (!chatSession) throw new Error("Chat session not initialized");
+  try {
+    const response = await chatSession.sendMessage({ message });
+    return response.text || "抱歉，我現在無法產生回應，請稍後再試。";
+  } catch (error) {
+    console.error("Gemini API Error:", error);
+    return "連線發生錯誤，請檢查您的網路或 API Key 設定。";
+  }
+};
