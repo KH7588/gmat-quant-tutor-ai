@@ -3,9 +3,9 @@ import react from '@vitejs/plugin-react'
 
 // https://vitejs.dev/config/
 export default defineConfig(({ mode }) => {
-  // 使用 (process as any) 來避免 TypeScript 檢查錯誤
   const env = loadEnv(mode, (process as any).cwd(), '');
   return {
+    base: '/',
     plugins: [react()],
     define: {
       // 這一行讓瀏覽器可以讀到 Vercel 設定的環境變數
